@@ -8,3 +8,5 @@ Handling of buffers:
  -(un)read
  -last seen line
  -keeping traces of them to be able to speak to one
+
+Thanks to Quassel and QuasselDroid authors
