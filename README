@@ -1,6 +1,8 @@
-Build with make (not a great Makefile)
 Make your bot by editing bot.c
+User/pass hardcoded in main.c, look for Login() call
+Server/Port hardcoded in main.c, see first line of main()
 
+Build with make (not a great Makefile)
 TODO:
 Handling of buffers:
  -(un)read
