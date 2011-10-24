@@ -499,6 +499,8 @@ char* get_bytearray(char **buf) {
 	uint32_t size = *((uint32_t*)*buf);
 	size=ltob(size);
 	(*buf)+=4;
+	if(size==0xFFFFFFFF)
+		return strdup("");
 	char *ret=strdup(*buf);
 	(*buf)+=size;
 	return ret;
