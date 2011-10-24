@@ -1,0 +1,8 @@
+Build with make (not a great Makefile)
+Make your bot by editing bot.c
+
+TODO:
+Handling of buffers:
+ -(un)read
+ -last seen line
+ -keeping traces of them to be able to speak to one
