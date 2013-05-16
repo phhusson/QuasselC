@@ -1,3 +1,20 @@
+/*
+   This file is part of QuasselC.
+
+   QuasselC is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   QuasselC is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with QuasselC.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -71,7 +88,6 @@ void HeartbeatReply(int fd) {
 }
 
 void send_message(int fd, struct bufferinfo b, char *message) {
-	printf("Sending message ! \n");
 	//HeartBeat
 	char msg[2048];
 	int size;
@@ -126,6 +142,55 @@ void initRequest(int fd, char *val, char *arg) {
 
 	size+=add_qvariant(msg+size, 10);
 	size+=add_string(msg+size, arg);
+
+	//The message will be of that length
+	uint32_t v=ltob(size+4);
+	write(fd, &v, 4);
+	write(fd, msg, size);
+}
+
+void requestBacklog(int fd, int buffer, int first, int last, int limit, int additional) {
+	char msg[2048];
+	int size;
+	
+	size=0;
+	bzero(msg, sizeof(msg));
+
+	//QVariant<QList<QVariant>> of 9 elements
+	size+=add_qvariant(msg+size, 9);
+	size+=add_int(msg+size, 9);
+
+	//QVariant<Int> = Sync
+	size+=add_qvariant(msg+size, 2);
+	size+=add_int(msg+size, 1);
+
+	size+=add_qvariant(msg+size, 10);
+	size+=add_string(msg+size, "BacklogManager");
+
+	size+=add_qvariant(msg+size, 10);
+	size+=add_string(msg+size, "");
+
+	size+=add_qvariant(msg+size, 10);
+	size+=add_string(msg+size, "requestBacklog");
+
+	size+=add_qvariant(msg+size, 127);
+	size+=add_bytearray(msg+size, "BufferId");
+	size+=add_int(msg+size, buffer);
+
+	size+=add_qvariant(msg+size, 127);
+	size+=add_bytearray(msg+size, "MsgId");
+	size+=add_int(msg+size, first);
+
+	size+=add_qvariant(msg+size, 127);
+	size+=add_bytearray(msg+size, "MsgId");
+	size+=add_int(msg+size, last);
+
+	size+=add_qvariant(msg+size, 2);
+	size+=add_int(msg+size, limit);
+
+	size+=add_qvariant(msg+size, 2);
+	size+=add_int(msg+size, additional);
+
 
 	//The message will be of that length
 	uint32_t v=ltob(size+4);

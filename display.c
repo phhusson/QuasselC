@@ -1,3 +1,20 @@
+/*
+   This file is part of QuasselC.
+
+   QuasselC is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   QuasselC is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with QuasselC.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -105,8 +122,10 @@ int display_usertype(char *buf) {
 	size = ltob(size);
 	buf+=4;
 	if(strcmp(buf, "NetworkId")==0 || strcmp(buf, "IdentityId")==0 || strcmp(buf, "BufferId")==0 || strcmp(buf, "MsgId")==0) {
+		printf("%s(", buf);
 		buf+=strlen(buf)+1;
-		buf+=display_int(buf);
+		buf+=display_int(buf, 0);
+		printf(")");
 	} else if(strcmp(buf, "Identity")==0) {
 		buf+=strlen(buf)+1;
 		buf+=display_map(buf);
@@ -127,17 +146,17 @@ int display_usertype(char *buf) {
 	return buf-orig_buf;
 }
 
-int display_int(char *buf) {
+int display_int(char *buf, int type) {
 	uint32_t size = *((uint32_t*)buf);
 	size = ltob(size);
-	printf(" Int(%08x) \n", size);
+	printf(" Int(%08x, %d) ", size, type);
 	return 4;
 }
 
 int display_short(char *buf) {
 	uint16_t size = *((uint16_t*)buf);
 	size = stob(size);
-	printf(" Short(%04x) \n", size);
+	printf(" Short(%04x) ", size);
 	return 2;
 }
 
@@ -239,7 +258,7 @@ int display_qvariant(char *buf) {
 			break;
 		case 2:
 		case 3:
-			buf+=display_int(buf);
+			buf+=display_int(buf, type);
 			break;
 		case 8:
 			buf+=display_map(buf);
