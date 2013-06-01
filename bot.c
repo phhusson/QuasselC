@@ -72,34 +72,73 @@ void handle_backlog(int fd, struct message m) {
 	send_message(fd, buffers[requester].i, msg);
 }
 
+char *stripname(char *str) {
+	char *res=malloc(strlen(str));
+	char *tmp=res;
+	while(str[0]) {
+		if(isalnum(*str)) {
+			*tmp=*str;
+			tmp++;
+		}
+		++str;
+	}
+	*tmp=0;
+	return res;
+}
+
 void handle_message(int fd, struct message m) {
+	printf("%s:%s:%d:%d:%s\n", m.buffer.name, m.sender, m.type, m.flags, m.content);
 	char *nick=strdup(m.sender);
 	if(index(nick, '!'))
 		*index(nick, '!')=0;
-	if(m.type==1) {
-		printf("%s %s: %s\n", nick, m.buffer.name, m.content);
+	if(m.type == 32) { //Join
+		if(
+			//Facebook
+			(nick[0]=='-' && isdigit(nick[1])) ||
+			//gtalk
+			(nick[0]=='_' && isdigit(nick[1]))
+			) {
+
+			//Send whois nick nick
+			char *cmd = NULL;
+			asprintf(&cmd, "/whois %s %s", nick, nick);
+			send_message(fd, m.buffer, cmd);
+			free(cmd);
+			goto end;
+		}
 	}
-	if(m.type==2) {
-		printf("%s %s; %s\n", nick, m.buffer.name, m.content);
+
+	if(m.type == 1024) { //Whois result
+		if(strstr(m.content, "Full Name:")) {
+			char *msg = strdup(m.content);
+			char *fullname = strstr(msg, "Full Name: ");
+			if(fullname == NULL) {
+				free(msg);
+				goto end;
+			}
+			fullname[0] = 0;
+			fullname += strlen("Full Name: ");
+			char *name = strstr(msg, "[Whois] ");
+			if(name==NULL) {
+				free(msg);
+				goto end;
+			}
+			name+=strlen("[Whois] ");
+
+			char *striped = stripname(fullname);
+			printf("Renaming %s to %s (name = %s)\n", name, striped, fullname);
+
+			char *cmd = NULL;
+			asprintf(&cmd, "/svsnick %s %s", name, striped);
+			printf("Sending %s\n", cmd);
+			send_message(fd, m.buffer, cmd);
+			free(msg);
+			free(striped);
+			free(cmd);
+		}
 	}
+end:
 	free(nick);
-	if(strstr(m.content, "phh"))
-		highlight=1;
-	if(!index("#&!+", m.buffer.name[0]))
-		highlight=1;
-
-	if(index("#&!+", m.buffer.name[0]))
-		return;
-
-	if(strstr(m.content, "!lastlog ")==m.content) {
-		requester=m.buffer.id;
-		match=m.content+strlen("!lastlog ");
-		requestBacklog(fd, find_buffer_id("#quassel"), -1, -1, 60, 0);
-	}
-
-	if(strstr(m.sender, "phh2")==m.sender) {
-		send_message(fd, m.buffer, "/SAY hello");
-	}
 }
 
 void handle_sync(object_t o, function_t f, ...) {
