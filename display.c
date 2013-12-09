@@ -260,6 +260,10 @@ int display_qvariant(char *buf) {
 		case 3:
 			buf+=display_int(buf, type);
 			break;
+		case 7:
+			//UTF16 byte
+			buf+=display_short(buf);
+			break;
 		case 8:
 			buf+=display_map(buf);
 			break;

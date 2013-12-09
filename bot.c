@@ -284,6 +284,7 @@ static int io_handler(GIOChannel *chan, GIOCondition condition, gpointer data) {
 	b->got += read_io(chan, b->msg+b->got, b->size-b->got);
 	if(b->got == b->size) {
 		quassel_parse_message(chan, b->msg, NULL);
+		//display_qvariant(b->msg);
 		free(b->msg);
 		b->got = 0;
 		b->size = 0;
