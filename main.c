@@ -265,6 +265,16 @@ int quassel_parse_message(GIOChannel* h, char *buf, void* extarg) {
 							free(mode);
 							free(network);
 							return 0;
+						} else if(!strcmp(fnc, "setTopic")) {
+							free(fnc);
+							type = get_qvariant(&buf);
+							if(type != 10)
+								return 1;
+							char *topic = get_string(&buf);
+							handle_event(extarg, h, TopicChange, atoi(network), chan, topic);
+							free(topic);
+							free(network);
+							return 0;
 						}
 
 						free(fnc);
