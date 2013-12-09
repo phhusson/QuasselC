@@ -24,8 +24,106 @@
 #include <string.h>
 #include <iconv.h>
 #include "quasselc.h"
+#include "export.h"
 
-void Login(int fd, char *user, char *pass) {
+//Copy paste from irssi's write_io
+static inline int write_io(GIOChannel *handle, const char* data, int len) {
+	gsize ret;
+	GIOStatus status;
+	GError *err = NULL;
+
+	g_return_val_if_fail(handle != NULL, -1);
+	g_return_val_if_fail(data != NULL, -1);
+
+	status = g_io_channel_write_chars(handle, (char *) data, len, &ret, &err);
+	if (err != NULL) {
+		g_warning(err->message);
+		g_error_free(err);
+	}
+	if (status == G_IO_STATUS_ERROR)
+		return -1;
+
+	return ret;
+
+}
+
+void quassel_mark_as_read(GIOChannel* h, int buffer_id) {
+	char msg[2048];
+	int size = 0;
+	bzero(msg, sizeof(msg));
+
+	//A list
+	size += add_qvariant(msg+size, 9);
+	//5 elements
+	size += add_int(msg+size, 5);
+
+	//A sync operation
+	size += add_qvariant(msg+size, 2);
+	size += add_int(msg+size, 1);
+
+	//'BufferSyncer' bytearray
+	size += add_qvariant(msg+size, 12);
+	size += add_bytearray(msg+size, "BufferSyncer");
+
+	//Empty string
+	size += add_qvariant(msg+size, 10);
+	size += add_int(msg+size, 0xffffffff);
+
+	//'markBufferAsRead' bytearray
+	size += add_qvariant(msg+size, 12);
+	size += add_bytearray(msg+size, "requestMarkBufferAsRead");
+
+	//BufferId type
+	size += add_qvariant(msg+size, 127);
+	size += add_bytearray(msg+size, "BufferId");
+	size += add_int(msg+size, buffer_id);
+
+	uint32_t v = htonl(size);
+	write_io(h, (char*)&v, 4);
+	write_io(h, msg, size);
+}
+
+void quassel_set_last_seen_msg(GIOChannel* h, int buffer_id, int msg_id) {
+	char msg[2048];
+	int size = 0;
+	bzero(msg, sizeof(msg));
+
+	//A list
+	size += add_qvariant(msg+size, 9);
+	//5 elements
+	size += add_int(msg+size, 6);
+
+	//A sync operation
+	size += add_qvariant(msg+size, 2);
+	size += add_int(msg+size, 1);
+
+	//'BufferSyncer' bytearray
+	size += add_qvariant(msg+size, 12);
+	size += add_bytearray(msg+size, "BufferSyncer");
+
+	//Empty string
+	size += add_qvariant(msg+size, 10);
+	size += add_int(msg+size, 0xffffffff);
+
+	size += add_qvariant(msg+size, 12);
+	size += add_bytearray(msg+size, "requestSetLastSeenMsg");
+
+	//BufferId type
+	size += add_qvariant(msg+size, 127);
+	size += add_bytearray(msg+size, "BufferId");
+	size += add_int(msg+size, buffer_id);
+
+	//MsgId type
+	size += add_qvariant(msg+size, 127);
+	size += add_bytearray(msg+size, "MsgId");
+	size += add_int(msg+size, msg_id);
+
+	uint32_t v = htonl(size);
+	write_io(h, (char*)&v, 4);
+	write_io(h, msg, size);
+}
+
+void quassel_login(GIOChannel* h, char *user, char *pass) {
 	//HeartBeat
 	char msg[2048];
 	int size;
@@ -45,22 +143,22 @@ void Login(int fd, char *user, char *pass) {
 	elements++;
 
 	//The message will be of that length
-	uint32_t v=ltob(size+8);
-	write(fd, &v, 4);
+	uint32_t v=htonl(size+9);
+	write_io(h, (char*)&v, 4);
 	//This is a QMap
-	v=ltob(8);
-	write(fd, &v, 4);
+	v=htonl(8);
+	write_io(h, (char*)&v, 4);
 	
 	//QMap is valid
 	v=0;
-	write(fd, &v, 1);
+	write_io(h, (char*)&v, 1);
 	//The QMap has <elements> elements
-	v=ltob(elements);
-	write(fd, &v, 4);
-	write(fd, msg, size);
+	v=htonl(elements);
+	write_io(h, (char*)&v, 4);
+	write_io(h, msg, size);
 }
 
-void HeartbeatReply(int fd) {
+void HeartbeatReply(GIOChannel* h) {
 	//HeartBeat
 	char msg[2048];
 	int size;
@@ -82,12 +180,12 @@ void HeartbeatReply(int fd) {
 	size+=add_int(msg+size, 0);
 
 	//The message will be of that length
-	uint32_t v=ltob(size+4);
-	write(fd, &v, 4);
-	write(fd, msg, size);
+	uint32_t v=htonl(size+4);
+	write_io(h, (char*)&v, 4);
+	write_io(h, msg, size);
 }
 
-void send_message(int fd, struct bufferinfo b, char *message) {
+void send_message(GIOChannel*h, struct bufferinfo b, const char *message) {
 	//HeartBeat
 	char msg[2048];
 	int size;
@@ -117,12 +215,12 @@ void send_message(int fd, struct bufferinfo b, char *message) {
 	size+=add_string(msg+size, message);
 
 	//The message will be of that length
-	uint32_t v=ltob(size);
-	write(fd, &v, 4);
-	write(fd, msg, size);
+	uint32_t v=htonl(size);
+	write_io(h, (char*)&v, 4);
+	write_io(h, msg, size);
 }
 
-void initRequest(int fd, char *val, char *arg) {
+void initRequest(GIOChannel* h, char *val, char *arg) {
 	char msg[2048];
 	int size;
 	
@@ -144,12 +242,12 @@ void initRequest(int fd, char *val, char *arg) {
 	size+=add_string(msg+size, arg);
 
 	//The message will be of that length
-	uint32_t v=ltob(size+4);
-	write(fd, &v, 4);
-	write(fd, msg, size);
+	uint32_t v=htonl(size+4);
+	write_io(h, (char*)&v, 4);
+	write_io(h, msg, size);
 }
 
-void requestBacklog(int fd, int buffer, int first, int last, int limit, int additional) {
+void quassel_request_backlog(GIOChannel *h, int buffer, int first, int last, int limit, int additional) {
 	char msg[2048];
 	int size;
 	
@@ -193,7 +291,46 @@ void requestBacklog(int fd, int buffer, int first, int last, int limit, int addi
 
 
 	//The message will be of that length
-	uint32_t v=ltob(size+4);
-	write(fd, &v, 4);
-	write(fd, msg, size);
+	uint32_t v=htonl(size+4);
+	write_io(h, (char*)&v, 4);
+	write_io(h, msg, size);
+}
+
+void quassel_init_packet(GIOChannel* h, int ssl) {
+	int size=0;
+	int elements=0;
+	char msg[2048];
+
+	size+=add_bool_in_map(msg+size, "UseSsl", !!ssl);
+	elements++;
+
+	size+=add_bool_in_map(msg+size, "UseCompression", 0);
+	elements++;
+
+	size+=add_int_in_map(msg+size, "ProtocolVersion", 10);
+	elements++;
+
+	size+=add_string_in_map(msg+size, "MsgType", "ClientInit");
+	elements++;
+
+	size+=add_string_in_map(msg+size, "ClientVersion", "v0.6.1 (Quassel-IRSSI)");
+	elements++;
+
+	size+=add_string_in_map(msg+size, "ClientDate", "Oct 23 2011 18:00:00");
+	elements++;
+
+	//The message will be of that length
+	unsigned int v=htonl(size+5);
+	write_io(h, (char*)&v, 4);
+	//This is a QMap
+	v=htonl(8);
+	write_io(h, (char*)&v, 4);
+	
+	//QMap is valid
+	v=0;
+	write_io(h, (char*)&v, 1);
+	//The QMap has <elements> elements
+	v=htonl(elements);
+	write_io(h, (char*)&v, 4);
+	write_io(h, msg, size);
 }

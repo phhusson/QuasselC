@@ -3,8 +3,8 @@
 #include "types.h"
 #include <stdarg.h>
 
-void handle_message(int fd, struct message m);
-void handle_backlog(int fd, struct message m);
+void handle_message(struct message m, void*);
+void handle_backlog(struct message m, void*);
 void handle_fd(int fd);
 
 typedef enum {
@@ -39,5 +39,14 @@ typedef enum {
 	AddIrcUser,		//(char *network_number, char *fullname);
 	SetLatency,		//(char *network_number, int latency); //unit ?
 } function_t;
-void handle_sync(object_t o, function_t f, ...);
+void handle_sync(void* arg, object_t o, function_t f, ...);
+
+typedef enum {
+	ClientInitAck,
+	SessionInit,
+	TopicChange,
+	ChanPreAddUser,
+	ChanReady,
+} event_t;
+void handle_event(void* arg, GIOChannel* h, event_t t, ...);
 #endif

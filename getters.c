@@ -26,8 +26,8 @@
 #include "quasselc.h"
 
 static iconv_t ico2;
-static void __init() __attribute__((constructor));
-static void __init() {
+static void __init(void) __attribute__((constructor));
+static void __init(void) {
 	ico2 = iconv_open("UTF-8", "UTF-16BE");
 }
 
@@ -76,7 +76,7 @@ void get_date(char **buf) {
 
 char* get_bytearray(char **buf) {
 	uint32_t size = *((uint32_t*)*buf);
-	size=ltob(size);
+	size=htonl(size);
 	(*buf)+=4;
 	if(size==0xFFFFFFFF)
 		return strdup("");
@@ -89,7 +89,7 @@ char* get_bytearray(char **buf) {
 
 char* get_string(char **buf) {
 	uint32_t size = *((uint32_t*)*buf);
-	size=ltob(size);
+	size=htonl(size);
 	(*buf)+=4;
 
 	if(size==0xffffffff) {
@@ -109,21 +109,21 @@ char get_byte(char **buf) {
 
 uint32_t get_int(char **buf) {
 	uint32_t v = *((uint32_t*)*buf);
-	v=ltob(v);
+	v=htonl(v);
 	(*buf)+=4;
 	return v;
 }
 
 uint16_t get_short(char **buf) {
 	uint16_t v = *((uint16_t*)*buf);
-	v=stob(v);
+	v=htons(v);
 	(*buf)+=2;
 	return v;
 }
 
 int get_qvariant(char **buf) {
 	uint32_t type = *((uint32_t*)*buf);
-	type=ltob(type);
+	type=htonl(type);
 	(*buf)+=4;
 	char null=**buf;
 	if(null) {
@@ -154,6 +154,9 @@ void get_variant_t(char **buf, int type) {
 		case 11:
 			get_stringlist(buf);
 			break;
+		case 12:
+			get_bytearray(buf);
+			break;
 		case 16:
 			get_date(buf);
 			break;
@@ -166,11 +169,16 @@ void get_variant_t(char **buf, int type) {
 					get_map(buf);
 				} else if(strcmp(usertype, "BufferInfo")==0) {
 					get_bufferinfo(buf);
+				} else if(strcmp(usertype, "Network::Server")==0) {
+					get_map(buf);
 				} else {
 					printf("Unsupported usertype = %s (%d)\n", usertype, __LINE__);
 					abort();
 				}
 			}
+			break;
+		case 133:
+			get_short(buf);
 			break;
 		default:
 			abort();

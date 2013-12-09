@@ -25,15 +25,16 @@
 #include <string.h>
 #include <iconv.h>
 #include "quasselc.h"
+#include "export.h"
 
 #if 0
 #define dprintf(x...) printf(x)
 #else
-#define dprintf(x...)
+static inline void useless_printf(char *str, ...) {
+	(void) str;
+}
+#define dprintf useless_printf
 #endif
-
-static int fd=-1;
-static int highlight=0;
 
 struct buffer {
 	struct bufferinfo i;
@@ -43,109 +44,42 @@ struct buffer {
 };
 static struct buffer *buffers;
 static int n_buffers;
-static int requester;
-static char *match;
 
-static int find_buffer_id(char *name) {
+static int find_buffer_id(uint32_t net, char *name) {
 	int i;
 	for(i=0;i<n_buffers;++i) {
-		if(buffers[i].i.id==-1)
+		if(buffers[i].i.id==(uint32_t)-1)
 			continue;
-		if(strcmp(buffers[i].i.name, name)==0)
+		if(strcmp(buffers[i].i.name, name)==0 && (net==(uint32_t)-1 || net == buffers[i].i.network))
 			return i;
 	}
 	return -1;
 }
 
-void handle_backlog(int fd, struct message m) {
-	if(!match)
-		return;
-	if(!strstr(m.content, match))
-		return;
-	char msg[512];
+void handle_backlog(struct message m, void *arg) {
+	(void) arg;
+	(void) m;
+}
+
+void handle_message(struct message m, void *arg) {
+	(void) arg;
+
 	char *nick=strdup(m.sender);
 	if(index(nick, '!'))
 		*index(nick, '!')=0;
-	snprintf(msg, 511, "%s: %s", nick, m.content);
-	free(nick);
-	msg[511]=0;
-	send_message(fd, buffers[requester].i, msg);
-}
-
-char *stripname(char *str) {
-	char *res=malloc(strlen(str));
-	char *tmp=res;
-	while(str[0]) {
-		if(isalnum(*str)) {
-			*tmp=*str;
-			tmp++;
-		}
-		++str;
-	}
-	*tmp=0;
-	return res;
-}
-
-void handle_message(int fd, struct message m) {
-	printf("%s:%s:%d:%d:%s\n", m.buffer.name, m.sender, m.type, m.flags, m.content);
-	char *nick=strdup(m.sender);
-	if(index(nick, '!'))
-		*index(nick, '!')=0;
-	if(m.type == 32) { //Join
-		if(
-			//Facebook
-			(nick[0]=='-' && isdigit(nick[1])) ||
-			//gtalk
-			(nick[0]=='_' && isdigit(nick[1]))
-			) {
-
-			//Send whois nick nick
-			char *cmd = NULL;
-			asprintf(&cmd, "/whois %s %s", nick, nick);
-			send_message(fd, m.buffer, cmd);
-			free(cmd);
-			goto end;
-		}
-	}
-
-	if(m.type == 1024) { //Whois result
-		if(strstr(m.content, "Full Name:")) {
-			char *msg = strdup(m.content);
-			char *fullname = strstr(msg, "Full Name: ");
-			if(fullname == NULL) {
-				free(msg);
-				goto end;
-			}
-			fullname[0] = 0;
-			fullname += strlen("Full Name: ");
-			char *name = strstr(msg, "[Whois] ");
-			if(name==NULL) {
-				free(msg);
-				goto end;
-			}
-			name+=strlen("[Whois] ");
-
-			char *striped = stripname(fullname);
-			printf("Renaming %s to %s (name = %s)\n", name, striped, fullname);
-
-			char *cmd = NULL;
-			asprintf(&cmd, "/svsnick %s %s", name, striped);
-			printf("Sending %s\n", cmd);
-			send_message(fd, m.buffer, cmd);
-			free(msg);
-			free(striped);
-			free(cmd);
-		}
-	}
-end:
+	printf("%s: %s says (type=%d) %s\n", m.buffer.name, nick, m.type, m.content);
 	free(nick);
 }
 
-void handle_sync(object_t o, function_t f, ...) {
+void handle_sync(void* arg, object_t o, function_t f, ...) {
+	(void) arg;
+	//Should be used to ensure f consistency
+	(void) o;
 	va_list ap;
 	char *fnc=NULL;
-	char *net,*chan,*nick,*name;
+	char *net,*chan,*nick,*name,*str;
 	int netid,bufid,msgid;
+	int latency,away;
 	va_start(ap, f);
 	switch(f) {
 		/* BufferSyncer */
@@ -169,7 +103,6 @@ void handle_sync(object_t o, function_t f, ...) {
 			buffers[bufid].displayed=1;
 			break;
 		case MarkBufferAsRead:
-			highlight=0;
 			if(!fnc)
 				fnc="MarkBufferAsRead";
 		case Displayed:
@@ -257,55 +190,171 @@ void handle_sync(object_t o, function_t f, ...) {
 				fnc="PartChannel";
 			net=va_arg(ap, char*);
 			nick=va_arg(ap, char*);
-			char *str=va_arg(ap, char*);
+			str=va_arg(ap, char*);
 			dprintf("%s(%s, %s, %s)\n", fnc, net, nick, str);
 			break;
 		case SetAway:
 			net=va_arg(ap, char*);
 			nick=va_arg(ap, char*);
-			int away=va_arg(ap, int);
+			away=va_arg(ap, int);
 			dprintf("setAway(%s, %s, %s)\n", net, nick, away ? "away" : "present");
 			break;
 		/* Network */
 		case AddIrcUser:
 			net=va_arg(ap, char*);
-			char *name=va_arg(ap, char*);
+			name=va_arg(ap, char*);
 			dprintf("AddIrcUser(%s, %s)\n", net, name);
 			break;
 		case SetLatency:
 			net=va_arg(ap, char*);
-			int latency=va_arg(ap, int);
+			latency=va_arg(ap, int);
 			dprintf("SetLatency(%s, %d)\n", net, latency);
 			break;
 	}
 	va_end(ap);
 }
 
-static int accept_fd;
-void handle_fd(int fd) {
-	if(fd==accept_fd) {
-		int client_fd=accept(fd, NULL, NULL);
-		if(client_fd>=0) {
-			char str[]="0\n";
-			str[0]+=highlight;
-			write(client_fd, str, 2);
-			close(client_fd);
-		}
+static char* user = NULL;
+static char* pass = NULL;
+void handle_event(void* arg, GIOChannel* h, event_t t, ...) {
+	(void) arg;
+	va_list ap;
+	va_start(ap, t);
+	switch(t) {
+		case ClientInitAck:
+			quassel_login(h, user, pass);
+			break;
+		case SessionInit:
+			initRequest(h, "BufferViewStatus", "0");
+			break;
+		case TopicChange:
+			break;
+		case ChanPreAddUser:
+			break;
+		case ChanReady:
+			break;
 	}
+	va_end(ap);
 }
 
-static void __init() __attribute__((constructor));
-static void __init() {
-	struct sockaddr_in6 addr;
-	bzero(&addr, sizeof(addr));
-	fd = socket(AF_INET6, SOCK_STREAM, 0);
-	addr.sin6_family=AF_INET6;
-	addr.sin6_port=htons(4242);
-	bind(fd, (struct sockaddr*)&addr, sizeof(addr));
-	listen(fd, 42);
-	accept_fd=fd;
-	register_fd(fd);
+//Copy/pasted from irssi/network.c
+static inline int read_io(GIOChannel *handle, char *buf, int len)
+{
+	gsize ret;
+	GIOStatus status;
+	GError *err = NULL;
 
-	int reuse = 1;
-	setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+	g_return_val_if_fail(handle != NULL, -1);
+	g_return_val_if_fail(buf != NULL, -1);
+
+	status = g_io_channel_read_chars(handle, buf, len, &ret, &err);
+	if (err != NULL) {
+		g_warning(err->message);
+		g_error_free(err);
+	}
+	if (status == G_IO_STATUS_ERROR || status == G_IO_STATUS_EOF)
+		return -1; /* disconnected */
+
+	return ret;
+}
+
+typedef struct {
+	char *msg;
+	uint32_t size;
+	uint32_t got;
+} net_buf;
+
+static int io_handler(GIOChannel *chan, GIOCondition condition, gpointer data) {
+	(void) condition;
+	net_buf *b = (net_buf*)data;
+	if(!b->size) {
+		uint32_t size;
+		if(read_io(chan, (char*)&size, 4)!=4)
+			return 1;
+		size=htonl(size);
+		if(size==0)
+			return 1;
+		b->msg = malloc(size);
+		if(!b->msg)
+			return 1;
+		b->size = size;
+		b->got = 0;
+	}
+
+	b->got += read_io(chan, b->msg+b->got, b->size-b->got);
+	if(b->got == b->size) {
+		quassel_parse_message(chan, b->msg, NULL);
+		free(b->msg);
+		b->got = 0;
+		b->size = 0;
+	}
+	return 1;
+}
+
+static int create_socket(const char* host, const char* port) {
+	struct addrinfo hints;
+	struct addrinfo *result, *rp;
+	int sfd, s;
+
+	memset(&hints, 0, sizeof(struct addrinfo));
+	hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
+	hints.ai_socktype = SOCK_STREAM; /* Datagram socket */
+	hints.ai_flags = AI_PASSIVE;    /* For wildcard IP address */
+	hints.ai_protocol = 0;          /* Any protocol */
+	hints.ai_canonname = NULL;
+	hints.ai_addr = NULL;
+	hints.ai_next = NULL;
+
+	s = getaddrinfo(host, port, &hints, &result);
+	if (s != 0) {
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+		exit(EXIT_FAILURE);
+	}
+
+	/* getaddrinfo() returns a list of address structures.
+	   Try each address until we successfully bind(2).
+	   If socket(2) (or bind(2)) fails, we (close the socket
+	   and) try the next address. */
+
+	for (rp = result; rp != NULL; rp = rp->ai_next) {
+		sfd = socket(rp->ai_family, rp->ai_socktype,
+				rp->ai_protocol);
+		if (sfd == -1)
+			continue;
+
+		if (connect(sfd, rp->ai_addr, rp->ai_addrlen) == 0)
+			break;                  /* Success */
+
+		close(sfd);
+	}
+
+	if (rp == NULL) {               /* No address succeeded */
+		fprintf(stderr, "Could not bind\n");
+		exit(EXIT_FAILURE);
+	}
+
+	freeaddrinfo(result);
+	return sfd;
+}
+
+int main(int argc, char **argv) {
+	if(argc != 5) {
+		fprintf(stderr, "%s: <host> <port> <user> <pass>\n", argv[0]);
+		return 1;
+	}
+
+	net_buf b;
+	b.msg = NULL;
+	b.size = 0;
+	b.got = 0;
+
+	user = argv[3];
+	pass = argv[4];
+	GIOChannel *in = g_io_channel_unix_new(create_socket(argv[1], argv[2]));
+	g_io_channel_set_encoding(in, NULL, NULL);
+	g_io_channel_set_buffered(in, FALSE);
+	quassel_init_packet(in, 0);
+	g_io_add_watch(in, G_IO_IN, io_handler, &b);
+	GMainLoop *loop = g_main_loop_new(NULL, FALSE);
+	g_main_loop_run(loop);
 }

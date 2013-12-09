@@ -15,6 +15,8 @@
    along with QuasselC.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define _GNU_SOURCE
+#include <glib.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -23,50 +25,58 @@
 #include <unistd.h>
 #include <string.h>
 #include <iconv.h>
+
 #include "quasselc.h"
+#include "export.h"
 
-static char* login;
-static char* pass;
+static void handle_irc_users_and_channels(void *extarg, GIOChannel* h, char** buf, char *network) {
+	if(get_qvariant(buf) != 8)
+		return;
+	int len = get_int(buf);
+	int netid = atoi(network);
+	for(int i=0; i<len; ++i) {
 
-int connect_to(char *hostname, char *port) {
-	struct addrinfo hints;
-	struct addrinfo *result, *rp;
-	int sfd, s;
-
-	memset(&hints, 0, sizeof(struct addrinfo));
-	hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
-	hints.ai_socktype = SOCK_STREAM; /* Datagram socket */
-	hints.ai_flags = 0;
-	hints.ai_protocol = 0;          /* Any protocol */
-
-	s = getaddrinfo(hostname, port, &hints, &result);
-	if (s != 0) {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
-		return -1;
+		char *key = get_string(buf);
+		if(strcmp(key, "channels")==0) {
+			if(get_qvariant(buf) != 8)
+				return;
+			int len = get_int(buf);
+			for(int i=0; i<len; ++i) {
+				char *channame = strdup(get_string(buf));
+				if(get_qvariant(buf) != 8)
+					return;
+				int len = get_int(buf);
+				for(int i=0; i<len; ++i) {
+					char *key = get_string(buf);
+					if(strcmp(key, "topic")==0) {
+						if(get_qvariant(buf) != 10)
+							return;
+						char *topic = get_string(buf);
+						handle_event(extarg, h, TopicChange, netid, channame, topic);
+					} else if(strcmp(key, "UserModes") == 0) {
+						if(get_qvariant(buf) != 8)
+							return;
+						int len = get_int(buf);
+						for(int i=0; i<len; ++i) {
+							char *key = get_string(buf);
+							int type = get_qvariant(buf);
+							if(type != 10)
+								return;
+							char *modes = get_string(buf);
+							handle_event(extarg, h, ChanPreAddUser, netid, channame, key, modes);
+						}
+					} else
+						get_variant(buf);
+				}
+				handle_event(extarg, h, ChanReady, netid, channame);
+				free(channame);
+			}
+		} else
+			get_variant(buf);
 	}
-
-	for(rp = result; rp != NULL; rp = rp->ai_next) {
-		sfd = socket(rp->ai_family, rp->ai_socktype,
-				rp->ai_protocol);
-		if(sfd == -1)
-			continue;
-
-		if(connect(sfd, rp->ai_addr, rp->ai_addrlen) != -1)
-			break;                  /* Success */
-
-		close(sfd);
-	}
-
-	if(!rp) {               /* No address succeeded */
-		fprintf(stderr, "Could not connect\n");
-		return -1;
-	}
-
-	freeaddrinfo(result);           /* No longer needed */
-	return sfd;
 }
 
-int parse_message(char *buf, int fd) {
+int quassel_parse_message(GIOChannel* h, char *buf, void* extarg) {
 	int type=get_qvariant(&buf);
 	if(type==9) {
 		//List, "normal" mode
@@ -123,7 +133,7 @@ int parse_message(char *buf, int fd) {
 							free(type_str);
 
 							int id = get_int(&buf);
-							handle_sync(BufferSyncer, MarkBufferAsRead, id);
+							handle_sync(extarg, BufferSyncer, MarkBufferAsRead, id);
 							return 0;
 						} else if(!strcmp(fnc, "setLastSeenMsg")) {
 							//BufferSyncer::setLastSeenMsg(int, int)
@@ -146,7 +156,7 @@ int parse_message(char *buf, int fd) {
 								return 1;
 							free(type_str);
 							int messageid = get_int(&buf);
-							handle_sync(BufferSyncer, SetLastSeenMsg, bufferid, messageid);
+							handle_sync(extarg, BufferSyncer, SetLastSeenMsg, bufferid, messageid);
 							return 0;
 						} else if(!strcmp(fnc, "setMarkerLine")) {
 							//BufferSyncer::setMarkerLine(int, int)
@@ -170,7 +180,7 @@ int parse_message(char *buf, int fd) {
 
 							free(type_str);
 							int messageid = get_int(&buf);
-							handle_sync(BufferSyncer, SetLastSeenMsg, bufferid, messageid);
+							handle_sync(extarg, BufferSyncer, SetMarkerLine, bufferid, messageid);
 							return 0;
 						}
 					} else if(!strcmp(cmd_str, "IrcChannel")) {
@@ -203,14 +213,14 @@ int parse_message(char *buf, int fd) {
 							type=get_qvariant(&buf);
 							if(type!=11)
 								return 1;
-							if(size!=get_int(&buf))
+							if(size!=(int)get_int(&buf))
 								return 1;
 							char **modes=malloc(size*sizeof(char*));
 							for(i=0;i<size;++i) {
 								char *mode=get_string(&buf);
 								modes[i]=mode;
 							}
-							handle_sync(IrcChannel, JoinIrcUsers, network, chan, size, users, modes);
+							handle_sync(extarg, IrcChannel, JoinIrcUsers, network, chan, size, users, modes);
 							free(network);
 							for(i=0;i<size;++i) {
 								free(users[i]);
@@ -232,7 +242,7 @@ int parse_message(char *buf, int fd) {
 								return 1;
 							char *mode=get_string(&buf);
 
-							handle_sync(IrcChannel, AddUserMode, network, chan, nick, mode);
+							handle_sync(extarg, IrcChannel, AddUserMode, network, chan, nick, mode);
 							free(nick);
 							free(mode);
 							free(network);
@@ -250,7 +260,7 @@ int parse_message(char *buf, int fd) {
 								return 1;
 							char *mode=get_string(&buf);
 
-							handle_sync(IrcChannel, RemoveUserMode, network, chan, nick, mode);
+							handle_sync(extarg, IrcChannel, RemoveUserMode, network, chan, nick, mode);
 							free(nick);
 							free(mode);
 							free(network);
@@ -273,7 +283,7 @@ int parse_message(char *buf, int fd) {
 
 						if(!strcmp(fnc, "quit")) {
 							//IrcUser::quit();
-							handle_sync(IrcUser, Quit, network, nick);
+							handle_sync(extarg, IrcUser, Quit, network, nick);
 							free(fnc);
 							free(network);
 							return 0;
@@ -284,7 +294,7 @@ int parse_message(char *buf, int fd) {
 							if(type!=10)
 								return 1;
 							char *srv=get_string(&buf);
-							handle_sync(IrcUser, SetServer, network, nick, srv);
+							handle_sync(extarg, IrcUser, SetServer, network, nick, srv);
 							free(srv);
 							free(network);
 							return 0;
@@ -295,7 +305,7 @@ int parse_message(char *buf, int fd) {
 							if(type!=10)
 								return 1;
 							char *name=get_string(&buf);
-							handle_sync(IrcUser, SetRealName, network, nick, name);
+							handle_sync(extarg, IrcUser, SetRealName, network, nick, name);
 							free(name);
 							free(network);
 							return 0;
@@ -306,7 +316,7 @@ int parse_message(char *buf, int fd) {
 							if(type!=1)
 								return 1;
 							int away=get_byte(&buf);
-							handle_sync(IrcUser, SetAway, network, nick, away);
+							handle_sync(extarg, IrcUser, SetAway, network, nick, away);
 							free(network);
 							return 0;
 						} else if(!strcmp(fnc, "setNick")) {
@@ -318,7 +328,7 @@ int parse_message(char *buf, int fd) {
 							if(type!=10)
 								return 1;
 							char *nick=get_string(&buf);
-							handle_sync(IrcUser, SetNick2, network, nick);
+							handle_sync(extarg, IrcUser, SetNick2, network, nick);
 							free(nick);
 							free(network);
 							return 0;
@@ -329,7 +339,7 @@ int parse_message(char *buf, int fd) {
 							if(type!=10)
 								return 1;
 							char *chan=get_string(&buf);
-							handle_sync(IrcUser, PartChannel, network, nick, chan);
+							handle_sync(extarg, IrcUser, PartChannel, network, nick, chan);
 							free(chan);
 							free(network);
 							return 0;
@@ -344,7 +354,7 @@ int parse_message(char *buf, int fd) {
 							if(type!=10)
 								return 1;
 							char *fullname=get_string(&buf);
-							handle_sync(Network, AddIrcUser, arg, fullname);
+							handle_sync(extarg, Network, AddIrcUser, arg, fullname);
 							free(fullname);
 							free(arg);
 							return 0;
@@ -355,7 +365,7 @@ int parse_message(char *buf, int fd) {
 							if(type!=2)
 								return 1;
 							int latency=get_int(&buf);
-							handle_sync(Network, SetLatency, arg, latency);
+							handle_sync(extarg, Network, SetLatency, arg, latency);
 							free(arg);
 							return 0;
 						}
@@ -377,6 +387,7 @@ int parse_message(char *buf, int fd) {
 									return 1;
 								bufid=get_int(&buf);
 							}
+							(void)bufid;
 							free(fnc);
 
 							type=get_qvariant(&buf);
@@ -386,6 +397,7 @@ int parse_message(char *buf, int fd) {
 							if(strcmp(type_str, "MsgId"))
 								return 1;
 							int first=get_int(&buf);
+							(void) first;
 
 							type=get_qvariant(&buf);
 							if(type!=127)
@@ -394,16 +406,19 @@ int parse_message(char *buf, int fd) {
 							if(strcmp(type_str, "MsgId"))
 								return 1;
 							int last=get_int(&buf);
+							(void) last;
 
 							type=get_qvariant(&buf);
 							if(type!=2)
 								return 1;
 							int limit=get_int(&buf);
+							(void) limit;
 
 							type=get_qvariant(&buf);
 							if(type!=2)
 								return 1;
 							int additional=get_int(&buf);
+							(void) additional;
 
 							type=get_qvariant(&buf);
 							if(type!=9)
@@ -418,10 +433,12 @@ int parse_message(char *buf, int fd) {
 								if(strcmp(type_str, "Message"))
 									return 1;
 								struct message m = get_message(&buf);
-								handle_backlog(fd, m);
+								handle_backlog(m, extarg);
 							}
 							return 0;
 						}
+					} else if(strcmp("BufferViewConfig", cmd_str)==0) {
+						//ignore...
 					} else
 						printf("Got unknown sync object type:%s\n", cmd_str);
 				}
@@ -452,7 +469,7 @@ int parse_message(char *buf, int fd) {
 							return 1;
 						}
 						struct message m = get_message(&buf);
-						handle_message(fd, m);
+						handle_message(m, extarg);
 						free(cmd_str);
 						return 0;
 					} else if(!strcmp(cmd_str, "__objectRenamed__")) {
@@ -483,7 +500,7 @@ int parse_message(char *buf, int fd) {
 							if(!index(new, '/'))
 								return 1;
 							new_nick=index(new, '/')+1;
-							handle_sync(IrcUser, SetNick, net, orig, new_nick);
+							handle_sync(extarg, IrcUser, SetNick, net, orig, new_nick);
 							free(new);
 							free(net);
 							return 0;
@@ -537,7 +554,7 @@ int parse_message(char *buf, int fd) {
 									if(strcmp(type_str, "BufferId"))
 										return 1;
 									int bufid=get_int(&buf);
-									handle_sync(BufferSyncer, TempRemoved, bufid);
+									handle_sync(extarg, BufferSyncer, TempRemoved, bufid);
 								}
 							} else if(!strcmp(key, "RemovedBuffers")) {
 								type=get_qvariant(&buf);
@@ -553,7 +570,7 @@ int parse_message(char *buf, int fd) {
 									if(strcmp(type_str, "BufferId"))
 										return 1;
 									int bufid=get_int(&buf);
-									handle_sync(BufferSyncer, Removed, bufid);
+									handle_sync(extarg, BufferSyncer, Removed, bufid);
 								}
 							} else if(!strcmp(key, "BufferList")) {
 								type=get_qvariant(&buf);
@@ -569,7 +586,7 @@ int parse_message(char *buf, int fd) {
 									if(strcmp(type_str, "BufferId"))
 										return 1;
 									int bufid=get_int(&buf);
-									handle_sync(BufferSyncer, Displayed, bufid);
+									handle_sync(extarg, BufferSyncer, Displayed, bufid);
 								}
 							} else {
 								get_variant(&buf);
@@ -618,7 +635,7 @@ int parse_message(char *buf, int fd) {
 										return 1;
 									int msgid=get_int(&buf);
 
-									handle_sync(BufferSyncer, SetMarkerLine, bufid, msgid);
+									handle_sync(extarg, BufferSyncer, SetMarkerLine, bufid, msgid);
 								}
 							} else if(!strcmp(key, "LastSeenMsg")) {
 								type=get_qvariant(&buf);
@@ -645,11 +662,27 @@ int parse_message(char *buf, int fd) {
 										return 1;
 									int msgid=get_int(&buf);
 
-									handle_sync(BufferSyncer, SetLastSeenMsg, bufid, msgid);
+									handle_sync(extarg, BufferSyncer, SetLastSeenMsg, bufid, msgid);
 								}
 							} else {
 								get_variant(&buf);
 							}
+						}
+						return 0;
+					} else if(strcmp(cmd_str, "Network")==0) {
+						if(get_qvariant(&buf) != 10)
+							return 1;
+						char *network_id = get_string(&buf);
+
+						if(get_qvariant(&buf) != 8)
+							return 1;
+						int len = get_int(&buf);
+						for(int i=0; i<len; ++i) {
+							char *varname = get_string(&buf);
+							if(strcmp(varname, "IrcUsersAndChannels") == 0) {
+								handle_irc_users_and_channels(extarg, h, &buf, network_id);
+							} else
+								get_variant(&buf);
 						}
 						return 0;
 					}
@@ -657,7 +690,7 @@ int parse_message(char *buf, int fd) {
 				}
 				break;
 			case 5:
-				HeartbeatReply(fd);
+				HeartbeatReply(h);
 				return 0;
 				break;
 			case 6:
@@ -678,15 +711,12 @@ int parse_message(char *buf, int fd) {
 					return 1;
 				}
 				char *category=get_string(&buf);
-				if(strcmp(category, "ClientInitAck")==0)
-					Login(fd, login, pass);
-				else if(strcmp(category, "SessionInit")==0) {
-					//Get buffers' display status
-					initRequest(fd, "BufferViewConfig", "0");
-					//Retreive marker lines and last seen msg
-					initRequest(fd, "BufferSyncer", "");
-					//initRequest(fd, "Network", "5");
-					//requestBacklog(fd, 29, -1, -1, 5, 0);
+				if(strcmp(category, "ClientInitAck")==0) {
+					//We can't go further here, because GIOChannel* h might have changed
+					handle_event(extarg, h, ClientInitAck);
+					return 0;
+				} else if(strcmp(category, "SessionInit")==0) {
+					handle_event(extarg, h, SessionInit);
 				}
 				continue;
 			} else if(strcmp(key, "SessionState")==0) {
@@ -706,7 +736,31 @@ int parse_message(char *buf, int fd) {
 							get_qvariant(&buf);
 							get_bytearray(&buf);
 							struct bufferinfo m=get_bufferinfo(&buf);
-							handle_sync(BufferSyncer, Create, m.id, m.network, m.name);
+							handle_sync(extarg, BufferSyncer, Create, m.id, m.network, m.type, m.group, m.name);
+						}
+						continue;
+					} else if(strcmp(key2, "NetworkIds") == 0) {
+						//list
+						if(type2 != 9)
+							return 1;
+
+						int size = get_int(&buf);
+						for(int i=0; i<size; ++i) {
+							int type3 = get_qvariant(&buf);
+							//Sepcial object
+							if(type3 != 127)
+								return 1;
+							char *type_str = get_bytearray(&buf);
+							//NetworkId object
+							if(strcmp(type_str, "NetworkId"))
+								return 1;
+							//Contains only an int
+							int network_id = get_int(&buf);
+							char *s = NULL;
+							int len = asprintf(&s, "%d", network_id);
+							(void) len;
+							initRequest(h, "Network", s);
+							free(s);
 						}
 						continue;
 					}
@@ -721,111 +775,3 @@ int parse_message(char *buf, int fd) {
 	return 1;
 }
 
-void read_and_display(int fd) {
-	uint32_t size;
-	read(fd, &size, 4);
-	size=ltob(size);
-	if(size==0)
-		exit(-1);
-	char *buf=malloc(size);
-	bzero(buf, size);
-	int done=0;
-	while(done<size) {
-		done+=read(fd, buf+done, size-done);
-	}
-
-	//Enable this to debug
-	//display_qvariant(buf);
-	if(parse_message(buf, fd))
-		display_qvariant(buf);
-	free(buf);
-}
-
-typedef struct fd_list {
-	int fd;
-	struct fd_list *n;
-} fd_list;
-static fd_list *a=NULL;
-void register_fd(int fd) {
-	fd_list *b;
-	if(!a) {
-		a=malloc(sizeof(fd_list));
-		b=a;
-	} else {
-		b=a;
-		while(b->n)
-			b=b->n;
-		b->n=malloc(sizeof(fd_list));
-		b=b->n;
-		b->n=NULL;
-	}
-	b->fd=fd;
-}
-
-int main(int argc, char **argv) {
-	if(argc!=5)
-		printf("Usage: %s login password host port\n", argv[0]);
-	login=argv[1];
-	pass=argv[2];
-	int fd = connect_to(argv[3], argv[4]);
-	if(fd==-1)
-		return -1;
-
-	int size=0;
-	int elements=0;
-	char msg[2048];
-
-	size+=add_bool_in_map(msg+size, "UseSsl", 0);
-	elements++;
-
-	size+=add_bool_in_map(msg+size, "UseCompression", 0);
-	elements++;
-
-	size+=add_int_in_map(msg+size, "ProtocolVersion", 10);
-	elements++;
-
-	size+=add_string_in_map(msg+size, "MsgType", "ClientInit");
-	elements++;
-
-	size+=add_string_in_map(msg+size, "ClientVersion", "v0.6.1 (dist-<a href='http://git.quassel-irc.org/?p=quassel.git;a=commit;h=611ebccdb6a2a4a89cf1f565bee7e72bcad13ffb'>611ebcc</a>)");
-	elements++;
-
-	size+=add_string_in_map(msg+size, "ClientDate", "Oct 23 2011 18:00:00");
-	elements++;
-
-	//The message will be of that length
-	unsigned int v=ltob(size+5);
-	write(fd, &v, 4);
-	//This is a QMap
-	v=ltob(8);
-	write(fd, &v, 4);
-	
-	//QMap is valid
-	v=0;
-	write(fd, &v, 1);
-	//The QMap has <elements> elements
-	v=ltob(elements);
-	write(fd, &v, 4);
-	write(fd, msg, size);
-
-	while(1) {
-		fd_set fds;
-		FD_ZERO(&fds);
-		FD_SET(fd, &fds);
-		fd_list *x=a;
-		while(x) {
-			FD_SET(x->fd, &fds);
-			x=x->n;
-		}
-		select(42, &fds, NULL, NULL, NULL);
-		if(FD_ISSET(fd, &fds))
-			read_and_display(fd);
-		x=a;
-		while(x) {
-			if(FD_ISSET(x->fd, &fds))
-				handle_fd(x->fd);
-			x=x->n;
-		}
-	}
-	return 0;
-}

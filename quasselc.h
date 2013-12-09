@@ -1,6 +1,7 @@
 #ifndef QUASSELC_H
 #define QUASSELC_H
 
+#include <glib.h>
 #include "bot.h"
 #include "cmds.h"
 #include "display.h"
