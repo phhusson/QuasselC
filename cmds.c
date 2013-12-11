@@ -37,7 +37,7 @@ static inline int write_io(GIOChannel *handle, const char* data, int len) {
 
 	status = g_io_channel_write_chars(handle, (char *) data, len, &ret, &err);
 	if (err != NULL) {
-		g_warning(err->message);
+		g_warning("%s", err->message);
 		g_error_free(err);
 	}
 	if (status == G_IO_STATUS_ERROR)
