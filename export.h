@@ -10,11 +10,13 @@ extern void quassel_irssi_joined(void* arg, int network, char *chan);
 extern void quassel_irssi_handle(void* r, int msg_id, int bufferid, int network, char* buffer_id, char* sender, int type, int flags, char* content);
 extern void quassel_irssi_topic(void* server, int network, char *chan, char *topic);
 extern void quassel_irssi_handle_connected(void*);
+extern void quassel_irssi_hide(void* arg, int net, const char* chan);
 
 /* quassel lib */
 extern void quassel_send_message(GIOChannel* h, int buffer, const char *message);
 extern void quassel_mark_as_read(GIOChannel* h, int buffer_id);
 extern void quassel_set_last_seen_msg(GIOChannel* h, int buffer_id, int msg_id);
+extern void quassel_set_marker(GIOChannel* h, int buffer_id, int msgid);
 extern void quassel_login(GIOChannel* h, char *user, char *pass);
 extern void quassel_init_packet(GIOChannel* h, int ssl);
 extern int quassel_parse_message(GIOChannel* h, char *buf, void *arg);
