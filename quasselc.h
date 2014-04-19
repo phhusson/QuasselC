@@ -7,6 +7,7 @@
 #include "display.h"
 #include "endian.h"
 #include "getters.h"
+#include "io.h"
 #include "setters.h"
 #include "types.h"
 

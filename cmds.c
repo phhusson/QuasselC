@@ -26,27 +26,6 @@
 #include "quasselc.h"
 #include "export.h"
 
-//Copy paste from irssi's write_io
-static inline int write_io(GIOChannel *handle, const char* data, int len) {
-	gsize ret;
-	GIOStatus status;
-	GError *err = NULL;
-
-	g_return_val_if_fail(handle != NULL, -1);
-	g_return_val_if_fail(data != NULL, -1);
-
-	status = g_io_channel_write_chars(handle, (char *) data, len, &ret, &err);
-	if (err != NULL) {
-		g_warning("%s", err->message);
-		g_error_free(err);
-	}
-	if (status == G_IO_STATUS_ERROR)
-		return -1;
-
-	return ret;
-
-}
-
 void quassel_mark_as_read(GIOChannel* h, int buffer_id) {
 	char msg[2048];
 	int size = 0;

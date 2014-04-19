@@ -237,27 +237,6 @@ void handle_event(void* arg, GIOChannel* h, event_t t, ...) {
 	va_end(ap);
 }
 
-//Copy/pasted from irssi/network.c
-static inline int read_io(GIOChannel *handle, char *buf, int len)
-{
-	gsize ret;
-	GIOStatus status;
-	GError *err = NULL;
-
-	g_return_val_if_fail(handle != NULL, -1);
-	g_return_val_if_fail(buf != NULL, -1);
-
-	status = g_io_channel_read_chars(handle, buf, len, &ret, &err);
-	if (err != NULL) {
-		g_warning(err->message);
-		g_error_free(err);
-	}
-	if (status == G_IO_STATUS_ERROR || status == G_IO_STATUS_EOF)
-		return -1; /* disconnected */
-
-	return ret;
-}
-
 typedef struct {
 	char *msg;
 	uint32_t size;
@@ -354,6 +333,14 @@ int main(int argc, char **argv) {
 	GIOChannel *in = g_io_channel_unix_new(create_socket(argv[1], argv[2]));
 	g_io_channel_set_encoding(in, NULL, NULL);
 	g_io_channel_set_buffered(in, FALSE);
+
+	if(!quassel_negotiate(in, 0)) {
+		fprintf(stderr, "Old quasselcore\n");
+		in = g_io_channel_unix_new(create_socket(argv[1], argv[2]));
+		g_io_channel_set_encoding(in, NULL, NULL);
+		g_io_channel_set_buffered(in, FALSE);
+	} else fprintf(stderr, "Using new protocol\n");
+
 	quassel_init_packet(in, 0);
 	g_io_add_watch(in, G_IO_IN, io_handler, &b);
 	GMainLoop *loop = g_main_loop_new(NULL, FALSE);
