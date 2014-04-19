@@ -44,7 +44,7 @@ int write_io(GIOChannel *handle, const char* data, int len) {
 			ZOutStream.next_out = ZBuf;
 
 			ZOutStream.avail_in = len;
-			ZOutStream.next_in = (char*)data;
+			ZOutStream.next_in = (uint8_t*)data;
 
 			int ret = deflate(&ZOutStream, Z_SYNC_FLUSH);
 			if(ret) {
@@ -104,9 +104,8 @@ int read_io(GIOChannel *handle, char *buf, int len)
 		//Check if there is some buffer left...
 		//If there is, return it
 		if(ZInStream.avail_in) {
-			int origRet = len;
 			ZInStream.avail_out = len;
-			ZInStream.next_out = buf;
+			ZInStream.next_out = (uint8_t*)buf;
 			int zret = inflate(&ZInStream, Z_SYNC_FLUSH);
 			if(zret) {
 				fprintf(stderr, "inflate failed: %d\n", zret);
@@ -126,13 +125,11 @@ int read_io(GIOChannel *handle, char *buf, int len)
 		return -1; /* disconnected */
 
 	if(useCompression) {
-
-		int origRet = len;
 		ZInStream.avail_out = len;
-		ZInStream.next_out = buf;
+		ZInStream.next_out = (uint8_t*)buf;
 
 		ZInStream.avail_in = ret;
-		ZInStream.next_in = Rbuf;
+		ZInStream.next_in = (uint8_t*)Rbuf;
 
 		int zret = inflate(&ZInStream, Z_SYNC_FLUSH);
 		if(zret) {

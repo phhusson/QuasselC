@@ -29,28 +29,28 @@
 int quassel_negotiate(GIOChannel* h, int ssl) {
 	uint32_t magic = 0x42b33f00;
 
-	//magic |= 1; //SSL
+	magic |= !!ssl; //SSL
 	magic |= 2; //Compression
 	
 	magic = htonl(magic);
-	write_io(h, &magic, sizeof(magic));
+	write_io(h, (char*)&magic, sizeof(magic));
 
 	//Send supported protocols
 	{
 		//Legacy protocol
 		uint32_t v = 1;
 		v = htonl(v);
-		write_io(h, &v, sizeof(v));
+		write_io(h, (char*)&v, sizeof(v));
 
 		//End of list
 		v = 1 << 31;
 		v = htonl(v);
-		write_io(h, &v, sizeof(v));
+		write_io(h, (char*)&v, sizeof(v));
 	}
 
 	//Read answer
 	uint32_t response;
-	read_io(h, &response, sizeof(response));
+	while(!read_io(h, (char*)&response, sizeof(response)));
 	response = ntohl(response);
 
 	//No support for legacy protocol

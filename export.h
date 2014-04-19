@@ -22,4 +22,8 @@ extern void quassel_init_packet(GIOChannel* h, int ssl);
 extern int quassel_parse_message(GIOChannel* h, char *buf, void *arg);
 extern void quassel_request_backlog(GIOChannel *h, int buffer, int first, int last, int limit, int additional);
 extern int quassel_find_buffer_id(const char *name, uint32_t network);
+extern int quassel_negotiate(GIOChannel* h, int ssl);
+
+extern int read_io(GIOChannel* h, char *buf, int len);
+extern int write_io(GIOChannel* h, char *buf, int len);
 #endif
