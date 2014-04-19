@@ -25,5 +25,5 @@ extern int quassel_find_buffer_id(const char *name, uint32_t network);
 extern int quassel_negotiate(GIOChannel* h, int ssl);
 
 extern int read_io(GIOChannel* h, char *buf, int len);
-extern int write_io(GIOChannel* h, char *buf, int len);
+extern int write_io(GIOChannel* h, const char *buf, int len);
 #endif

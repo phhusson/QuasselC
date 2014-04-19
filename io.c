@@ -124,7 +124,7 @@ int read_io(GIOChannel *handle, char *buf, int len)
 	if (status == G_IO_STATUS_ERROR || status == G_IO_STATUS_EOF)
 		return -1; /* disconnected */
 
-	if(useCompression) {
+	if(useCompression && ret) {
 		ZInStream.avail_out = len;
 		ZInStream.next_out = (uint8_t*)buf;
 
