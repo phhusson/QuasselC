@@ -183,7 +183,7 @@ void quassel_login(GIOChannel* h, char *user, char *pass) {
 	elements++;
 
 	//The message will be of that length
-	uint32_t v=htonl(size+9);
+	uint32_t v=htonl(size+4/*QMap type*/+1/*valid*/+4/*n elements*/);
 	write_io(h, (char*)&v, 4);
 	//This is a QMap
 	v=htonl(8);
@@ -220,7 +220,7 @@ void HeartbeatReply(GIOChannel* h) {
 	size+=add_int(msg+size, 0);
 
 	//The message will be of that length
-	uint32_t v=htonl(size+4);
+	uint32_t v=htonl(size);
 	write_io(h, (char*)&v, 4);
 	write_io(h, msg, size);
 }
@@ -282,7 +282,7 @@ void initRequest(GIOChannel* h, char *val, char *arg) {
 	size+=add_string(msg+size, arg);
 
 	//The message will be of that length
-	uint32_t v=htonl(size+4);
+	uint32_t v=htonl(size);
 	write_io(h, (char*)&v, 4);
 	write_io(h, msg, size);
 }
@@ -331,7 +331,7 @@ void quassel_request_backlog(GIOChannel *h, int buffer, int first, int last, int
 
 
 	//The message will be of that length
-	uint32_t v=htonl(size+4);
+	uint32_t v=htonl(size);
 	write_io(h, (char*)&v, 4);
 	write_io(h, msg, size);
 }
@@ -360,7 +360,7 @@ void quassel_init_packet(GIOChannel* h, int ssl) {
 	elements++;
 
 	//The message will be of that length
-	unsigned int v=htonl(size+5);
+	unsigned int v=htonl(size+4/*QMap type*/+1/*valid*/+4/*n elements*/);
 	write_io(h, (char*)&v, 4);
 	//This is a QMap
 	v=htonl(8);
