@@ -127,3 +127,10 @@ int add_int_in_map(char *msg, char *key, int value) {
 	return buf-msg;
 }
 
+/* Freeers */
+void free_message(struct message* m) {
+	//Don't free the message itself, only its content
+	free(m->sender);
+	free(m->content);
+	free(m->buffer.name);
+}

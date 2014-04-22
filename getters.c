@@ -149,7 +149,7 @@ void get_variant_t(char **buf, int type) {
 			get_list(buf);
 			break;
 		case 10:
-			get_string(buf);
+			free(get_string(buf));
 			break;
 		case 11:
 			get_stringlist(buf);
@@ -194,7 +194,7 @@ void get_map(char **buf) {
 	int size=get_int(buf);
 	int i;
 	for(i=0;i<size;++i) {
-		get_string(buf);
+		free(get_string(buf));
 		get_variant(buf);
 	}
 }
@@ -203,7 +203,7 @@ void get_stringlist(char **buf) {
 	int size=get_int(buf);
 	int i;
 	for(i=0;i<size;++i) {
-		get_string(buf);
+		free(get_string(buf));
 	}
 }
 

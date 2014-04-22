@@ -12,4 +12,6 @@ int add_bufferinfo(char *buf, struct bufferinfo b);
 int add_string_in_map(char *msg, char *key, char* value);
 int add_bool_in_map(char *msg, char *key, int value);
 int add_int_in_map(char *msg, char *key, int value);
+
+void free_message(struct message*);
 #endif
