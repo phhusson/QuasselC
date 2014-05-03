@@ -373,7 +373,7 @@ void quassel_temp_hide(GIOChannel *h, int buffer) {
 	size+=add_string(msg+size, "BufferViewConfig");
 
 	size+=add_qvariant(msg+size, 10);
-	size+=add_string(msg+size, "");
+	size+=add_string(msg+size, "0");
 
 	size+=add_qvariant(msg+size, 10);
 	size+=add_string(msg+size, "requestRemoveBuffer");
@@ -408,7 +408,7 @@ void quassel_perm_hide(GIOChannel *h, int buffer) {
 	size+=add_string(msg+size, "BufferViewConfig");
 
 	size+=add_qvariant(msg+size, 10);
-	size+=add_string(msg+size, "");
+	size+=add_string(msg+size, "0");
 
 	size+=add_qvariant(msg+size, 10);
 	size+=add_string(msg+size, "requestRemoveBufferPermanently");

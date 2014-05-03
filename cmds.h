@@ -9,4 +9,5 @@ extern void initRequest(GIOChannel*, char *val, char *arg);
 extern void quassel_request_backlog(GIOChannel *h, int buffer, int first, int last, int limit, int additional);
 extern void quassel_perm_hide(GIOChannel *h, int buffer);
 extern void quassel_temp_hide(GIOChannel *h, int buffer);
+extern int quassel_negotiate(GIOChannel* h, int ssl);
 #endif
