@@ -1,5 +1,5 @@
 CFLAGS:=-Wall -g -Wextra $(shell pkg-config glib-2.0 --cflags) -Wswitch-enum -std=gnu11 -O2
-LDLIBS:=$(shell pkg-config glib-2.0 --libs)
+LDLIBS:=$(shell pkg-config glib-2.0 --libs) -lz
 
 objects=bot.o setters.o getters.o main.o cmds.o display.o negotiation.o io.o
 

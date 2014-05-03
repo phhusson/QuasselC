@@ -353,3 +353,73 @@ void quassel_init_packet(GIOChannel* h, int ssl) {
 	write_io(h, (char*)&v, 4);
 	write_io(h, msg, size);
 }
+
+void quassel_temp_hide(GIOChannel *h, int buffer) {
+	char msg[2048];
+	int size;
+
+	size=0;
+	bzero(msg, sizeof(msg));
+
+	//QVariant<QList<QVariant>> of 9 elements
+	size+=add_qvariant(msg+size, 9);
+	size+=add_int(msg+size, 5);
+
+	//QVariant<Int> = Sync
+	size+=add_qvariant(msg+size, 2);
+	size+=add_int(msg+size, 1);
+
+	size+=add_qvariant(msg+size, 10);
+	size+=add_string(msg+size, "BufferViewConfig");
+
+	size+=add_qvariant(msg+size, 10);
+	size+=add_string(msg+size, "");
+
+	size+=add_qvariant(msg+size, 10);
+	size+=add_string(msg+size, "requestRemoveBuffer");
+
+	size+=add_qvariant(msg+size, 127);
+	size+=add_bytearray(msg+size, "BufferId");
+	size+=add_int(msg+size, buffer);
+
+
+	//The message will be of that length
+	uint32_t v=htonl(size);
+	write_io(h, (char*)&v, 4);
+	write_io(h, msg, size);
+}
+
+void quassel_perm_hide(GIOChannel *h, int buffer) {
+	char msg[2048];
+	int size;
+
+	size=0;
+	bzero(msg, sizeof(msg));
+
+	//QVariant<QList<QVariant>> of 9 elements
+	size+=add_qvariant(msg+size, 9);
+	size+=add_int(msg+size, 5);
+
+	//QVariant<Int> = Sync
+	size+=add_qvariant(msg+size, 2);
+	size+=add_int(msg+size, 1);
+
+	size+=add_qvariant(msg+size, 10);
+	size+=add_string(msg+size, "BufferViewConfig");
+
+	size+=add_qvariant(msg+size, 10);
+	size+=add_string(msg+size, "");
+
+	size+=add_qvariant(msg+size, 10);
+	size+=add_string(msg+size, "requestRemoveBufferPermanently");
+
+	size+=add_qvariant(msg+size, 127);
+	size+=add_bytearray(msg+size, "BufferId");
+	size+=add_int(msg+size, buffer);
+
+
+	//The message will be of that length
+	uint32_t v=htonl(size);
+	write_io(h, (char*)&v, 4);
+	write_io(h, msg, size);
+}

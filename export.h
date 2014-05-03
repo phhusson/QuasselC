@@ -26,4 +26,6 @@ extern int quassel_negotiate(GIOChannel* h, int ssl);
 
 extern int read_io(GIOChannel* h, char *buf, int len);
 extern int write_io(GIOChannel* h, const char *buf, int len);
+extern void quassel_perm_hide(GIOChannel *h, int buffer);
+extern void quassel_temp_hide(GIOChannel *h, int buffer);
 #endif
