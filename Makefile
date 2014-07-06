@@ -1,11 +1,17 @@
-CFLAGS:=-Wall -g -Wextra $(shell pkg-config glib-2.0 --cflags) -Wswitch-enum -std=gnu11 -O2
+CFLAGS:=-Wall -g -Wextra $(shell pkg-config glib-2.0 --cflags) -Wswitch-enum -std=gnu11 -O2 -fPIC
+SO_VERSION = 0
+VERSION = 0
 LDLIBS:=$(shell pkg-config glib-2.0 --libs) -lz
 
-objects=bot.o setters.o getters.o main.o cmds.o display.o negotiation.o io.o
+lib_objects=setters.o getters.o main.o cmds.o display.o negotiation.o io.o
 
 all: bot
 
-bot: $(objects)
+libquasselc.so.$(VERSION): $(lib_objects)
+	$(CC) -shared -o $@ -Wl,-soname,libquasselc.so.$(SO_VERSION) $^ $(LDLIBS)
+
+bot: bot.o libquasselc.so.$(VERSION)
+	$(CC) -o $@ $^ $(LDLIBS)
 
 clean:
-	rm -f $(objects)
+	rm -f *.o bot libquasselc.so.$(VERSION)
