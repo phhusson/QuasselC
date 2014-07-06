@@ -1,3 +1,7 @@
+prefix ?= /usr/local
+libdir ?= $(prefix)/lib
+includedir ?= $(prefix)/include
+
 CFLAGS:=-Wall -g -Wextra $(shell pkg-config glib-2.0 --cflags) -Wswitch-enum -std=gnu11 -O2 -fPIC
 SO_VERSION = 0
 VERSION = 0
@@ -18,4 +22,15 @@ clean:
 	rm -f *.o bot libquasselc.so.$(VERSION) quasselc.pc
 
 quasselc.pc: quasselc.pc.in
-	sed -e 's/@version@/$(VERSION)/;' < $^ > $@
+	sed -e 's,@version@,$(VERSION),' \
+		-e 's,@libdir@,$(libdir),' \
+		-e 's,@prefix@,$(prefix),' \
+		-e 's,@includedir@,$(includedir),' < $^ > $@
+
+install: libquasselc.so.$(VERSION) quasselc.pc
+	$(INSTALL) -d $(DESTDIR)$(libdir)
+	$(INSTALL) libquasselc.so.$(VERSION) $(DESTDIR)$(libdir)
+	$(INSTALL) -d $(DESTDIR)$(libdir)/pkg-config
+	$(INSTALL) quasselc.pc $(DESTDIR)$(libdir)/pkg-config
+	$(INSTALL) -d $(DESTDIR)$(includedir)/quasselc
+	$(INSTALL) -m 0644 *.h $(DESTDIR)$(includedir)/quasselc

@@ -1,11 +1,10 @@
 prefix=@prefix@
-exec_prefix=${prefix}
-libdir=${prefix}/lib/x86_64-linux-gnu
-includedir=${prefix}/include
+libdir=@libdir@
+includedir=@includedir@
 
 Name: quasselc
 Description: Quassel Client Library
 Version: @version@
 Libs:  -L${libdir} -lquasselc
-Cflags: -I${includedir}
+Cflags: -I${includedir}/quasselc
 URL: https://github.com/phhusson/QuasselC.git
