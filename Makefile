@@ -30,7 +30,7 @@ quasselc.pc: quasselc.pc.in
 install: libquasselc.so.$(VERSION) quasselc.pc
 	$(INSTALL) -d $(DESTDIR)$(libdir)
 	$(INSTALL) libquasselc.so.$(VERSION) $(DESTDIR)$(libdir)
-	$(INSTALL) -d $(DESTDIR)$(libdir)/pkg-config
-	$(INSTALL) quasselc.pc $(DESTDIR)$(libdir)/pkg-config
+	$(INSTALL) -d $(DESTDIR)$(libdir)/pkgconfig
+	$(INSTALL) quasselc.pc $(DESTDIR)$(libdir)/pkgconfig
 	$(INSTALL) -d $(DESTDIR)$(includedir)/quasselc
 	$(INSTALL) -m 0644 *.h $(DESTDIR)$(includedir)/quasselc
