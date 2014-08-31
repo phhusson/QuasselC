@@ -1,0 +1,10 @@
+prefix=@prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: quasselc
+Description: Quassel Client Library
+Version: @version@
+Libs:  -L${libdir} -lquasselc
+Cflags: -I${includedir}/quasselc
+URL: https://github.com/phhusson/QuasselC.git
