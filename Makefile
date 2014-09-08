@@ -10,7 +10,7 @@ LDLIBS:=$(shell pkg-config glib-2.0 --libs) -lz
 
 lib_objects=setters.o getters.o main.o cmds.o display.o negotiation.o io.o
 
-all: bot libquasselc.so.$(VERSION) quasselc.pc
+all: bot check_quassel libquasselc.so.$(VERSION) quasselc.pc
 
 libquasselc.so.$(VERSION): $(lib_objects)
 	$(CC) -shared -o $@ -Wl,-soname,libquasselc.so.$(SO_VERSION) $^ $(LDLIBS)
@@ -18,8 +18,11 @@ libquasselc.so.$(VERSION): $(lib_objects)
 bot: bot.o libquasselc.so.$(VERSION)
 	$(CC) -o $@ $^ $(LDLIBS)
 
+check_quassel: check_quassel.o libquasselc.so.$(VERSION)
+	$(CC) -o $@ $^ $(LDLIBS)
+
 clean:
-	rm -f *.o bot libquasselc.so.$(VERSION) quasselc.pc
+	rm -f *.o bot check_quassel libquasselc.so.$(VERSION) quasselc.pc
 
 quasselc.pc: quasselc.pc.in
 	sed -e 's,@version@,$(VERSION),' \
