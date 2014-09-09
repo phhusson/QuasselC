@@ -744,6 +744,9 @@ int quassel_parse_message(GIOChannel* h, char *buf, void* extarg) {
 					return 0;
 				} else if(strcmp(category, "SessionInit")==0) {
 					handle_event(extarg, h, SessionInit);
+				} else if(strcmp(category, "ClientLoginReject")==0) {
+					handle_event(extarg, h, ClientLoginReject);
+					return 0;
 				}
 				free(key);
 				continue;

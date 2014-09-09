@@ -224,6 +224,9 @@ void handle_event(void* arg, GIOChannel* h, event_t t, ...) {
 		case ClientInitAck:
 			quassel_login(h, user, pass);
 			break;
+		case ClientLoginReject:
+			fprintf(stderr, "Failed login\n");
+			exit(1);
 		case SessionInit:
 			initRequest(h, "BufferViewStatus", "0");
 			break;

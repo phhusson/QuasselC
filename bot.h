@@ -47,6 +47,8 @@ typedef enum {
 	TopicChange,
 	ChanPreAddUser,
 	ChanReady,
+	// Errors start from 0x1000
+	ClientLoginReject = 0x1000,
 } event_t;
 void handle_event(void* arg, GIOChannel* h, event_t t, ...);
 #endif
