@@ -78,7 +78,7 @@ void handle_sync(void* arg, object_t o, function_t f, ...) {
 	va_list ap;
 	char *fnc=NULL;
 	char *net,*chan,*nick,*name,*str;
-	int netid,bufid,msgid;
+	int netid,bufid,msgid,group,type;
 	int latency,away;
 	va_start(ap, f);
 	switch(f) {
@@ -86,8 +86,10 @@ void handle_sync(void* arg, object_t o, function_t f, ...) {
 		case Create:
 			bufid=va_arg(ap, int);
 			netid=va_arg(ap, int);
+			type=va_arg(ap, int);
+			group=va_arg(ap, int);
 			name=va_arg(ap, char*);
-			dprintf("CreateBuffer(%d, %d, %s)\n", netid, bufid, name);
+			dprintf("CreateBuffer(%d, %d, %d, %d, %s)\n", netid, bufid, type, group, name);
 			if(bufid>=n_buffers) {
 				buffers=realloc(buffers, sizeof(struct buffer)*(bufid+1));
 				int i;
