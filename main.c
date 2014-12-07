@@ -706,6 +706,12 @@ int quassel_parse_message(GIOChannel* h, char *buf, void* extarg) {
 							char *varname = get_string(&buf);
 							if(strcmp(varname, "IrcUsersAndChannels") == 0) {
 								handle_irc_users_and_channels(extarg, h, &buf, network_id);
+							} else if(strcmp(varname, "myNick") == 0) {
+								int type = get_qvariant(&buf);
+								if(type != 10) return 1;
+								char *nick = get_string(&buf);
+								handle_sync(extarg, Network, MyNick, network_id, nick);
+								free(nick);
 							} else
 								get_variant(&buf);
 							free(varname);

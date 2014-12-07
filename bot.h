@@ -38,6 +38,7 @@ typedef enum {
 	/* Network */
 	AddIrcUser,		//(char *network_number, char *fullname);
 	SetLatency,		//(char *network_number, int latency); //unit ?
+	MyNick,			//(char *network_number, char* nick);
 } function_t;
 void handle_sync(void* arg, object_t o, function_t f, ...);
 
