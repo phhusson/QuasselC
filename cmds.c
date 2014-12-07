@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <iconv.h>
+#include <limits.h>
 #include "quasselc.h"
 #include "export.h"
 
@@ -361,7 +362,7 @@ void quassel_temp_hide(GIOChannel *h, int buffer) {
 	size=0;
 	bzero(msg, sizeof(msg));
 
-	//QVariant<QList<QVariant>> of 9 elements
+	//QVariant<QList<QVariant>> of 5 elements
 	size+=add_qvariant(msg+size, 9);
 	size+=add_int(msg+size, 5);
 
@@ -396,7 +397,7 @@ void quassel_perm_hide(GIOChannel *h, int buffer) {
 	size=0;
 	bzero(msg, sizeof(msg));
 
-	//QVariant<QList<QVariant>> of 9 elements
+	//QVariant<QList<QVariant>> of 5 elements
 	size+=add_qvariant(msg+size, 9);
 	size+=add_int(msg+size, 5);
 
@@ -416,6 +417,44 @@ void quassel_perm_hide(GIOChannel *h, int buffer) {
 	size+=add_qvariant(msg+size, 127);
 	size+=add_bytearray(msg+size, "BufferId");
 	size+=add_int(msg+size, buffer);
+
+
+	//The message will be of that length
+	uint32_t v=htonl(size);
+	write_io(h, (char*)&v, 4);
+	write_io(h, msg, size);
+}
+
+void quassel_append_buffer(GIOChannel *h, int buffer) {
+	char msg[2048];
+	int size;
+
+	size=0;
+	bzero(msg, sizeof(msg));
+
+	//QVariant<QList<QVariant>> of 6 elements
+	size+=add_qvariant(msg+size, 9);
+	size+=add_int(msg+size, 6);
+
+	//QVariant<Int> = Sync
+	size+=add_qvariant(msg+size, 2);
+	size+=add_int(msg+size, 1);
+
+	size+=add_qvariant(msg+size, 10);
+	size+=add_string(msg+size, "BufferViewConfig");
+
+	size+=add_qvariant(msg+size, 10);
+	size+=add_string(msg+size, "0");
+
+	size+=add_qvariant(msg+size, 10);
+	size+=add_string(msg+size, "requestAddBuffer");
+
+	size+=add_qvariant(msg+size, 127);
+	size+=add_bytearray(msg+size, "BufferId");
+	size+=add_int(msg+size, buffer);
+
+	size+=add_qvariant(msg+size, 2);
+	size+=add_int(msg+size, INT_MAX);
 
 
 	//The message will be of that length
