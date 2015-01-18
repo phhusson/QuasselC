@@ -59,12 +59,10 @@ int quassel_negotiate(GIOChannel* h, int ssl) {
 
 	if( (response>>24) & 1) {
 		//switch to ssl
-		fprintf(stderr, "Core asks for ssl\n");
 	}
 
 	if( (response>>24) & 2) {
 		//switch and compression
-		fprintf(stderr, "Core asks for compression\n");
 		extern int useCompression;
 		useCompression = 1;
 	}
