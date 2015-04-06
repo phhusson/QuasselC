@@ -23,6 +23,7 @@ typedef enum {
 	MarkBufferAsRead,	//(int bufferid);
 	SetLastSeenMsg,		//(int bufferid, int messageid);
 	SetMarkerLine,		//(int bufferid, int messageid);
+	DoneBuffersInit,	//(int infoid)
 	/* IrcChannel */
 	JoinIrcUsers,		//(char *network_number, char *channel, int size, char **users, char **modes);
 	AddUserMode,		//(char *network_number, char *channel, char *user, char *mode);

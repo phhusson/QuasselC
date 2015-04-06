@@ -613,6 +613,7 @@ int quassel_parse_message(GIOChannel* h, char *buf, void* extarg) {
 							}
 							free(key);
 						}
+						handle_sync(extarg, BufferSyncer, DoneBuffersInit, 1);
 						return 0;
 					} else if(!strcmp(cmd_str, "BufferSyncer")) {
 						type=get_qvariant(&buf);
@@ -693,6 +694,7 @@ int quassel_parse_message(GIOChannel* h, char *buf, void* extarg) {
 								get_variant(&buf);
 							}
 						}
+						handle_sync(extarg, BufferSyncer, DoneBuffersInit, 2);
 						return 0;
 					} else if(strcmp(cmd_str, "Network")==0) {
 						if(get_qvariant(&buf) != 10)
