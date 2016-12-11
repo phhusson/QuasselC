@@ -10,7 +10,7 @@ LDLIBS:=$(shell pkg-config glib-2.0 --libs) -lz
 
 BOTLIBS := -Wl,-rpath,.
 
-lib_objects=setters.o getters.o main.o cmds.o display.o negotiation.o io.o
+lib_objects=setters.o getters.o main.o cmds.o display.o negotiation.o io.o symbols.o
 
 all: bot libquasselc.so.$(VERSION) quasselc.pc
 
