@@ -1,5 +1,5 @@
 #ifndef SETTERS_H
-#define SETTERS_
+#define SETTERS_H
 
 //char *convert_string(char *str, int *size);
 
