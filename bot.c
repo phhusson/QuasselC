@@ -15,7 +15,7 @@
    License along with QuasselC.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <asm/socket.h>
+#include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
